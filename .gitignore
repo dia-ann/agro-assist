@@ -1,0 +1,29 @@
+# Flutter & Dart
+.dart_tool/
+.packages
+.pub/
+build/
+ios/Flutter/Flutter.podspec
+
+# Android
+android/.gradle/
+android/app/build/
+**/*.keystore
+**/local.properties
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+
+# TFLite / model files
+assets/models/*.tflite
+assets/models/*.txt
+
+# IDEs
+.vscode/
+.idea/
+
+# Others
+*.log
+*.lock
+*.tmp
