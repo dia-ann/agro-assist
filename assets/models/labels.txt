@@ -1,0 +1,8 @@
+Blueberry_leaf
+Corn_leaf_blight
+Corn_rust_leaf
+Peach_leaf
+Potato_leaf_early_blight
+Potato_leaf_late_blight
+Raspberry_leaf
+Squash_powdery_mildew_leaf

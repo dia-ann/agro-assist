@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "487361656019",
+    "project_id": "agroassist-da03e",
+    "storage_bucket": "agroassist-da03e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:487361656019:android:6dd2337c674c732cec1026",
+        "android_client_info": {
+          "package_name": "com.mycompany.agroassist"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "487361656019-4sal1qgtnkb8uge2i1bmmas16sjvekqr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mycompany.agroassist",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "487361656019-t91l4cvlpdudgsrtdo6hqom55tfnmibg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbIgzZ8wlONe3mzXYgUUPfYhVIrAMoAYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "487361656019-t91l4cvlpdudgsrtdo6hqom55tfnmibg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "487361656019-4grpt9cg1r2p6i0vecd3arg1rkom52m9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.agroassist"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

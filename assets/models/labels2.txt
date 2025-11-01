@@ -1,0 +1,8 @@
+Apple_Scab_Leaf
+Apple_Leaf
+Apple_Rust_Leaf
+Strawberry_Leaf
+Tomato_Early_Blight_Leaf
+Tomato_Leaf_Bacterial_Spot
+Tomato_Leaf_Late_Blight
+Tomato_Leaf_Yellow_Virus
