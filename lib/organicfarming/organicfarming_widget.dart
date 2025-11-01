@@ -8,6 +8,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'organicfarming_model.dart';
 export 'organicfarming_model.dart';
+// Core Flutter and Dart imports
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+// TFLite and image processing packages
+import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:image/image.dart' as img;
 
 class OrganicfarmingWidget extends StatefulWidget {
   const OrganicfarmingWidget({super.key});
@@ -22,19 +28,111 @@ class OrganicfarmingWidget extends StatefulWidget {
 class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
   late OrganicfarmingModel _model;
 
+  // TFLite interpreters for the two models
+  Interpreter? _interpreter1;
+  Interpreter? _interpreter2;
+
+  // List to hold the labels from the labels.txt file
+  List<String>? _labels;
+
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => OrganicfarmingModel());
+
+    // Load the TFLite models and labels when the page is initialized.
+    _loadModels();
+  }
+
+  /// Helper function to load both TFLite models and labels from assets.
+  Future<void> _loadModels() async {
+    try {
+      // Load labels from the asset file
+      final labelsData = await rootBundle.loadString('assets/models/labels.txt');
+      _labels = labelsData.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+
+      // Load the first model
+      _interpreter1 = await Interpreter.fromAsset('assets/models/model1.tflite');
+
+      // Load the second model
+      _interpreter2 = await Interpreter.fromAsset('assets/models/model2.tflite');
+
+      debugPrint("Models and labels loaded successfully.");
+    } catch (e) {
+      debugPrint("Error loading models: $e");
+      // Handle error, maybe show a message to the user
+      if (mounted) {
+        setState(() {
+          _model.detectedDisease = "Error loading models.";
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     _model.dispose();
+    // Dispose of the interpreters to free up resources
+    _interpreter1?.close();
+    _interpreter2?.close();
 
     super.dispose();
+  }
+
+  /// Preprocesses the image and runs inference using both models.
+  Future<String> _runInferenceOnImage(Uint8List imageBytes) async {
+    if (_interpreter1 == null || _interpreter2 == null || _labels == null) {
+      return "Models not loaded.";
+    }
+
+    // Decode and preprocess the image
+    img.Image? originalImage = img.decodeImage(imageBytes);
+    if (originalImage == null) return "Failed to decode image.";
+
+    // Assuming models expect a 224x224 input
+    img.Image resizedImage = img.copyResize(originalImage, width: 224, height: 224);
+    var input = Float32List(1 * 224 * 224 * 3);
+    var buffer = input.buffer.asUint8List();
+    int pixelIndex = 0;
+    for (var y = 0; y < 224; y++) {
+      for (var x = 0; x < 224; x++) {
+        var pixel = resizedImage.getPixel(x, y);
+        // Normalize pixel values to [0, 1]
+        buffer[pixelIndex++] = (pixel.r.toInt() * (255.0 / 255.0)).toInt();
+        buffer[pixelIndex++] = (pixel.g.toInt() * (255.0 / 255.0)).toInt();
+        buffer[pixelIndex++] = (pixel.b.toInt() * (255.0 / 255.0)).toInt();
+      }
+    }
+    final reshapedInput = input.reshape([1, 224, 224, 3]);
+
+    // Prepare output tensors
+    var output1 = List.filled(1 * _labels!.length, 0.0).reshape([1, _labels!.length]);
+    var output2 = List.filled(1 * _labels!.length, 0.0).reshape([1, _labels!.length]);
+
+    // Run inference
+    _interpreter1!.run(reshapedInput, output1);
+    _interpreter2!.run(reshapedInput, output2);
+
+    // Process results
+    double maxConfidence1 = (output1[0] as List<double>).reduce(max);
+    int index1 = (output1[0] as List<double>).indexOf(maxConfidence1);
+
+    double maxConfidence2 = (output2[0] as List<double>).reduce(max);
+    int index2 = (output2[0] as List<double>).indexOf(maxConfidence2);
+
+    // Compare predictions and return the best one
+    if (index1 == index2) {
+      return _labels![index1]; // Both models agree
+    } else {
+      // Models disagree, pick the one with higher confidence
+      if (maxConfidence1 > maxConfidence2) {
+        return "${_labels![index1]} (Model 1)";
+      } else {
+        return "${_labels![index2]} (Model 2)";
+      }
+    }
   }
 
   @override
@@ -244,14 +342,16 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
 
                                 _model.selectedImage =
                                     _model.uploadedLocalFile_uploadDataEte;
-                                safeSetState(() {});
-                                _model.detectedDisease = 'Processing...';
-                                safeSetState(() {});
-                                await Future.delayed(
-                                  Duration(
-                                    milliseconds: 2000,
-                                  ),
-                                );
+                                setState(() {
+                                  _model.detectedDisease = 'Processing...';
+                                });
+
+                                // Run inference asynchronously
+                                final prediction = await _runInferenceOnImage(
+                                    _model.selectedImage!.bytes!);
+                                setState(() {
+                                  _model.detectedDisease = prediction;
+                                });
                               },
                               text: FFLocalizations.of(context).getText(
                                 '887373au' /* Analyse Image */,
