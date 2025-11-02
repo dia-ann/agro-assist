@@ -33,7 +33,8 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
   Interpreter? _interpreter2;
 
   // List to hold the labels from the labels.txt file
-  List<String>? _labels;
+  List<String>? _labels1;
+  List<String>? _labels2;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -49,9 +50,13 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
   /// Helper function to load both TFLite models and labels from assets.
   Future<void> _loadModels() async {
     try {
-      // Load labels from the asset file
-      final labelsData = await rootBundle.loadString('assets/models/labels.txt');
-      _labels = labelsData.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+      // Load labels for the first model
+      final labelsData1 = await rootBundle.loadString('assets/models/labels.txt');
+      _labels1 = labelsData1.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+
+      // Load labels for the second model
+      final labelsData2 = await rootBundle.loadString('assets/models/labels2.txt');
+      _labels2 = labelsData2.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
 
       // Load the first model
       _interpreter1 = await Interpreter.fromAsset('assets/models/model1.tflite');
@@ -83,7 +88,7 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
 
   /// Preprocesses the image and runs inference using both models.
   Future<String> _runInferenceOnImage(Uint8List imageBytes) async {
-    if (_interpreter1 == null || _interpreter2 == null || _labels == null) {
+    if (_interpreter1 == null || _interpreter2 == null || _labels1 == null || _labels2 == null) {
       return "Models not loaded.";
     }
 
@@ -108,8 +113,8 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
     final reshapedInput = input.reshape([1, 224, 224, 3]);
 
     // Prepare output tensors
-    var output1 = List.filled(1 * _labels!.length, 0.0).reshape([1, _labels!.length]);
-    var output2 = List.filled(1 * _labels!.length, 0.0).reshape([1, _labels!.length]);
+    var output1 = List.filled(1 * _labels1!.length, 0.0).reshape([1, _labels1!.length]);
+    var output2 = List.filled(1 * _labels2!.length, 0.0).reshape([1, _labels2!.length]);
 
     // Run inference
     _interpreter1!.run(reshapedInput, output1);
@@ -122,15 +127,18 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
     double maxConfidence2 = (output2[0] as List<double>).reduce(max);
     int index2 = (output2[0] as List<double>).indexOf(maxConfidence2);
 
+    String label1 = _labels1![index1];
+    String label2 = _labels2![index2];
+
     // Compare predictions and return the best one
-    if (index1 == index2) {
-      return _labels![index1]; // Both models agree
+    if (label1 == label2) {
+      return label1; // Both models agree
     } else {
       // Models disagree, pick the one with higher confidence
       if (maxConfidence1 > maxConfidence2) {
-        return "${_labels![index1]} (Model 1)";
+        return "$label1 (Model 1)";
       } else {
-        return "${_labels![index2]} (Model 2)";
+        return "$label2 (Model 2)";
       }
     }
   }
