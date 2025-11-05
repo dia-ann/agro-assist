@@ -95,6 +95,9 @@ class _Weather1WidgetState extends State<Weather1Widget> {
   Widget build(BuildContext context) {
     context.watch<FFAppState>();
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -154,8 +157,8 @@ class _Weather1WidgetState extends State<Weather1Widget> {
                   borderRadius: BorderRadius.circular(8.0),
                   child: Image.asset(
                     'assets/images/download_(3).jpeg',
-                    width: 502.2,
-                    height: 928.8,
+                    width: screenWidth,
+                    height: screenHeight,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -326,7 +329,9 @@ class _Weather1WidgetState extends State<Weather1Widget> {
                                                         ),
                                                         color:
                                                             Color(0xFF006644),
-                                                        fontSize: 60.0,
+                                                        // Scale main temperature font by screen width
+                                                        fontSize:
+                                                            screenWidth * 0.15,
                                                         letterSpacing: 0.0,
                                                         fontWeight:
                                                             FontWeight.w300,
@@ -354,8 +359,8 @@ class _Weather1WidgetState extends State<Weather1Widget> {
                                                       )}@2x.png',
                                                       'https://openweathermap.org/img/wn/10d@2x.png',
                                                     ),
-                                                    width: 90.9,
-                                                    height: 96.7,
+                                                    width: screenWidth * 0.18,
+                                                    height: screenWidth * 0.18,
                                                     fit: BoxFit.cover,
                                                   ),
                                                 ),
@@ -367,9 +372,11 @@ class _Weather1WidgetState extends State<Weather1Widget> {
                                                     padding:
                                                         EdgeInsetsDirectional
                                                             .fromSTEB(
-                                                                120.0,
+                                                                screenWidth *
+                                                                    0.15,
                                                                 0.0,
-                                                                100.0,
+                                                                screenWidth *
+                                                                    0.10,
                                                                 0.0),
                                                     child: Text(
                                                       valueOrDefault<String>(

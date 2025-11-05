@@ -52,6 +52,7 @@
         "google_sign_in_web",
         "html",
         "http",
+        "image",
         "image_picker",
         "image_picker_android",
         "image_picker_for_web",
@@ -87,6 +88,7 @@
         "sqflite",
         "sqflite_common",
         "stream_transform",
+        "tflite_flutter",
         "timeago",
         "url_launcher",
         "url_launcher_android",
@@ -304,6 +306,17 @@
         "url_launcher_platform_interface",
         "url_launcher_web",
         "url_launcher_windows"
+      ]
+    },
+    {
+      "name": "tflite_flutter",
+      "version": "0.12.1",
+      "dependencies": [
+        "ffi",
+        "flutter",
+        "path",
+        "plugin_platform_interface",
+        "quiver"
       ]
     },
     {
@@ -638,6 +651,15 @@
         "image_picker_macos",
         "image_picker_platform_interface",
         "image_picker_windows"
+      ]
+    },
+    {
+      "name": "image",
+      "version": "4.5.4",
+      "dependencies": [
+        "archive",
+        "meta",
+        "xml"
       ]
     },
     {
@@ -1232,6 +1254,18 @@
       ]
     },
     {
+      "name": "ffi",
+      "version": "2.1.4",
+      "dependencies": []
+    },
+    {
+      "name": "quiver",
+      "version": "3.2.2",
+      "dependencies": [
+        "matcher"
+      ]
+    },
+    {
       "name": "synchronized",
       "version": "3.4.0",
       "dependencies": []
@@ -1293,11 +1327,6 @@
         "flutter",
         "permission_handler_platform_interface"
       ]
-    },
-    {
-      "name": "ffi",
-      "version": "2.1.4",
-      "dependencies": []
     },
     {
       "name": "platform",
@@ -1386,6 +1415,24 @@
       "name": "mime",
       "version": "2.0.0",
       "dependencies": []
+    },
+    {
+      "name": "xml",
+      "version": "6.5.0",
+      "dependencies": [
+        "collection",
+        "meta",
+        "petitparser"
+      ]
+    },
+    {
+      "name": "archive",
+      "version": "4.0.7",
+      "dependencies": [
+        "crypto",
+        "path",
+        "posix"
+      ]
     },
     {
       "name": "source_span",
@@ -1597,18 +1644,18 @@
       ]
     },
     {
-      "name": "xml",
-      "version": "6.5.0",
-      "dependencies": [
-        "collection",
-        "meta",
-        "petitparser"
-      ]
-    },
-    {
       "name": "args",
       "version": "2.7.0",
       "dependencies": []
+    },
+    {
+      "name": "posix",
+      "version": "6.0.3",
+      "dependencies": [
+        "ffi",
+        "meta",
+        "path"
+      ]
     },
     {
       "name": "sanitize_html",

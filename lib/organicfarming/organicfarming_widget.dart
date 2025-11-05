@@ -11,6 +11,7 @@ export 'organicfarming_model.dart';
 // Core Flutter and Dart imports
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'dart:math';
 // TFLite and image processing packages
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
@@ -36,6 +37,10 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
   List<String>? _labels1;
   List<String>? _labels2;
 
+  // Loading state flags
+  bool _isLoadingModels = false;
+  bool _modelsLoaded = false;
+
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -49,24 +54,43 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
 
   /// Helper function to load both TFLite models and labels from assets.
   Future<void> _loadModels() async {
+    if (_modelsLoaded || _isLoadingModels) return;
+    _isLoadingModels = true;
     try {
-      // Load labels for the first model
-      final labelsData1 = await rootBundle.loadString('assets/models/labels.txt');
-      _labels1 = labelsData1.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+      // Load labels for the first model (labels1.txt exists in assets)
+      final labelsData1 =
+          await rootBundle.loadString('assets/models/labels1.txt');
+      _labels1 = labelsData1
+          .split('\n')
+          .map((label) => label.trim())
+          .where((label) => label.isNotEmpty)
+          .toList();
 
       // Load labels for the second model
-      final labelsData2 = await rootBundle.loadString('assets/models/labels2.txt');
-      _labels2 = labelsData2.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+      final labelsData2 =
+          await rootBundle.loadString('assets/models/labels2.txt');
+      _labels2 = labelsData2
+          .split('\n')
+          .map((label) => label.trim())
+          .where((label) => label.isNotEmpty)
+          .toList();
 
-      // Load the first model
-      _interpreter1 = await Interpreter.fromAsset('assets/models/model1.tflite');
+      // Load the first model as plantdoc_core_model (interpreter1)
+      _interpreter1 = await Interpreter.fromAsset(
+          'assets/models/plantdoc_core_model.tflite');
 
-      // Load the second model
-      _interpreter2 = await Interpreter.fromAsset('assets/models/model2.tflite');
+      // Load the second model as plantdoc_2_model (interpreter2)
+      _interpreter2 =
+          await Interpreter.fromAsset('assets/models/plantdoc_2_model.tflite');
 
       debugPrint("Models and labels loaded successfully.");
+      _modelsLoaded = true;
+      _isLoadingModels = false;
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint("Error loading models: $e");
+      _modelsLoaded = false;
+      _isLoadingModels = false;
       // Handle error, maybe show a message to the user
       if (mounted) {
         setState(() {
@@ -88,7 +112,10 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
 
   /// Preprocesses the image and runs inference using both models.
   Future<String> _runInferenceOnImage(Uint8List imageBytes) async {
-    if (_interpreter1 == null || _interpreter2 == null || _labels1 == null || _labels2 == null) {
+    if (_interpreter1 == null ||
+        _interpreter2 == null ||
+        _labels1 == null ||
+        _labels2 == null) {
       return "Models not loaded.";
     }
 
@@ -97,50 +124,51 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
     if (originalImage == null) return "Failed to decode image.";
 
     // Assuming models expect a 224x224 input
-    img.Image resizedImage = img.copyResize(originalImage, width: 224, height: 224);
-    var input = Float32List(1 * 224 * 224 * 3);
-    var buffer = input.buffer.asUint8List();
-    int pixelIndex = 0;
+    img.Image resizedImage =
+        img.copyResize(originalImage, width: 224, height: 224);
+    // Create a Float32List and fill with normalized RGB values in [0,1]
+    final input = Float32List(1 * 224 * 224 * 3);
+    int floatIndex = 0;
     for (var y = 0; y < 224; y++) {
       for (var x = 0; x < 224; x++) {
-        var pixel = resizedImage.getPixel(x, y);
-        // Normalize pixel values to [0, 1]
-        buffer[pixelIndex++] = (pixel.r.toInt() * (255.0 / 255.0)).toInt();
-        buffer[pixelIndex++] = (pixel.g.toInt() * (255.0 / 255.0)).toInt();
-        buffer[pixelIndex++] = (pixel.b.toInt() * (255.0 / 255.0)).toInt();
+        final pixel = resizedImage.getPixel(x, y);
+        // pixel.r/g/b are ints 0-255; normalize to 0..1
+        input[floatIndex++] = (pixel.r.toDouble()) / 255.0;
+        input[floatIndex++] = (pixel.g.toDouble()) / 255.0;
+        input[floatIndex++] = (pixel.b.toDouble()) / 255.0;
       }
     }
     final reshapedInput = input.reshape([1, 224, 224, 3]);
 
-    // Prepare output tensors
-    var output1 = List.filled(1 * _labels1!.length, 0.0).reshape([1, _labels1!.length]);
-    var output2 = List.filled(1 * _labels2!.length, 0.0).reshape([1, _labels2!.length]);
+    // Prepare output tensor for model1
+    var output1 =
+        List.filled(_labels1!.length, 0.0).reshape([1, _labels1!.length]);
 
-    // Run inference
+    // Run model1 only first
     _interpreter1!.run(reshapedInput, output1);
-    _interpreter2!.run(reshapedInput, output2);
 
-    // Process results
+    // Process model1 results
     double maxConfidence1 = (output1[0] as List<double>).reduce(max);
     int index1 = (output1[0] as List<double>).indexOf(maxConfidence1);
+    String label1 = _labels1![index1];
+
+    // If model1 (plantdoc_core_model) is confident enough, return its label.
+    const double confidenceThreshold = 0.6; // adjustable threshold
+    if (maxConfidence1 >= confidenceThreshold) {
+      return label1;
+    }
+
+    // Prepare output tensor for model2 (plantdoc_2_model) and run it as fallback
+    var output2 =
+        List.filled(_labels2!.length, 0.0).reshape([1, _labels2!.length]);
+    _interpreter2!.run(reshapedInput, output2);
 
     double maxConfidence2 = (output2[0] as List<double>).reduce(max);
     int index2 = (output2[0] as List<double>).indexOf(maxConfidence2);
-
-    String label1 = _labels1![index1];
     String label2 = _labels2![index2];
 
-    // Compare predictions and return the best one
-    if (label1 == label2) {
-      return label1; // Both models agree
-    } else {
-      // Models disagree, pick the one with higher confidence
-      if (maxConfidence1 > maxConfidence2) {
-        return "$label1 (Model 1)";
-      } else {
-        return "$label2 (Model 2)";
-      }
-    }
+    // Return the label from model2 (labels2.txt)
+    return label2 + " (Model 2)";
   }
 
   @override
@@ -218,13 +246,39 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
                                 0.0, 80.0, 0.0, 0.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
-                              child: Image.memory(
-                                _model.selectedImage?.bytes ??
-                                    Uint8List.fromList([]),
-                                width: 250.0,
-                                height: 250.0,
-                                fit: BoxFit.cover,
-                              ),
+                              child: (_model.selectedImage?.bytes != null &&
+                                      _model.selectedImage!.bytes!.isNotEmpty)
+                                  ? Image.memory(
+                                      _model.selectedImage!.bytes!,
+                                      width: 250.0,
+                                      height: 250.0,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(
+                                      width: 250.0,
+                                      height: 250.0,
+                                      color: Color(0xFFF1F1F1),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.upload_file,
+                                              size: 48.0,
+                                              color: Color(0xFF06413A),
+                                            ),
+                                            SizedBox(height: 8.0),
+                                            Text(
+                                              'Upload image',
+                                              style: TextStyle(
+                                                color: Color(0xFF06413A),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ),
                           Padding(
@@ -268,33 +322,38 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
                                         _model.detectedDisease != ''
                                     ? true
                                     : false)
-                                  Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 10.0, 0.0, 0.0),
-                                    child: Text(
-                                      valueOrDefault<String>(
-                                        _model.detectedDisease,
-                                        '\"  \"',
-                                      ),
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
+                                  Flexible(
+                                    child: Padding(
+                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                          0.0, 10.0, 0.0, 0.0),
+                                      child: Text(
+                                        valueOrDefault<String>(
+                                          _model.detectedDisease,
+                                          '"  "',
+                                        ),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: true,
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              font: GoogleFonts.inter(
+                                                fontWeight: FontWeight.bold,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontStyle,
+                                              ),
+                                              color: Color(0xFF06413A),
+                                              fontSize: 18.0,
+                                              letterSpacing: 0.0,
                                               fontWeight: FontWeight.bold,
                                               fontStyle:
                                                   FlutterFlowTheme.of(context)
                                                       .bodyMedium
                                                       .fontStyle,
                                             ),
-                                            color: Color(0xFF06413A),
-                                            fontSize: 18.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.bold,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
+                                      ),
                                     ),
                                   ),
                               ]
@@ -307,6 +366,22 @@ class _OrganicfarmingWidgetState extends State<OrganicfarmingWidget> {
                                 0.0, 50.0, 0.0, 0.0),
                             child: FFButtonWidget(
                               onPressed: () async {
+                                // Ensure models are loaded before allowing analysis
+                                if (!_modelsLoaded) {
+                                  setState(() {
+                                    _model.detectedDisease =
+                                        'Loading models...';
+                                  });
+                                  await _loadModels();
+                                  if (!_modelsLoaded) {
+                                    // Loading failed; don't proceed
+                                    setState(() {
+                                      _model.detectedDisease =
+                                          'Error loading models.';
+                                    });
+                                    return;
+                                  }
+                                }
                                 final selectedMedia =
                                     await selectMediaWithSourceBottomSheet(
                                   context: context,
